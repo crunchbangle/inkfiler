@@ -70,14 +70,15 @@ function TextboxItem({ tb }: { tb: Textbox }) {
         className="textbox-area"
         value={content}
         placeholder="Type…"
-        onPointerDown={(e) => {
-          // Release the implicit pointer capture the browser puts on this
-          // textarea when a pen touches it. Otherwise, if the OS handwriting
-          // panel swallows the pen-up, the capture stays stuck on the textarea
-          // and the canvas never receives pen events again (mouse still works,
-          // since it's a separate, uncaptured pointer).
-          const t = e.currentTarget;
-          if (t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId);
+        // Release any pointer capture the textarea gains — including the
+        // implicit capture the Windows handwriting panel sets when a pen writes
+        // into it via the OS path (which never fires a normal pointerdown). If
+        // left captured, the pen's events stay routed to the textarea and the
+        // canvas never receives them again until a reload (mouse is unaffected,
+        // being a separate uncaptured pointer). gotpointercapture catches it
+        // however the capture was acquired.
+        onGotPointerCapture={(e) => {
+          e.currentTarget.releasePointerCapture(e.pointerId);
         }}
         onChange={(e) => {
           setContent(e.target.value);
