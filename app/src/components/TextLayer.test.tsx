@@ -21,7 +21,7 @@ function textbox(id: string, content: string): Textbox {
 function loadedWith(boxes: Textbox[]): LoadedNode {
   return {
     node: node("a"),
-    canvas: { node_id: "a", bounds: null, strokes: [], updated_at: 0 },
+    canvas: { node_id: "a", bounds: null, strokes: [], raster: null, updated_at: 0 },
     textboxes: boxes,
     tags: [],
   };

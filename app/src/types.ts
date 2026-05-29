@@ -25,6 +25,8 @@ export interface Canvas {
   node_id: string;
   bounds: { w: number; h: number } | null;
   strokes: Stroke[];
+  /** Rendered PNG snapshot (data URL) for pixel-faithful display. */
+  raster: string | null;
   updated_at: number;
 }
 

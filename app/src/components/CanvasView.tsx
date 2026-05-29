@@ -12,7 +12,11 @@ const CANVAS_H = 1200;
 const BOUNDS = { w: CANVAS_W, h: CANVAS_H };
 const SAVE_DEBOUNCE_MS = 600;
 
-/** Re-draw a list of recorded strokes onto an atrament canvas, in order. */
+/**
+ * Fallback re-draw for canvases saved before raster snapshots existed.
+ * atrament's renderer is stateful, so this is only approximate — once a raster
+ * snapshot is saved, that is used for display instead.
+ */
 function replay(at: Atrament, strokes: Stroke[]) {
   at.recordStrokes = false;
   const saved = {
@@ -53,7 +57,14 @@ function replay(at: Atrament, strokes: Stroke[]) {
 export function CanvasView() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const atRef = useRef<Atrament | null>(null);
+  // Vector strokes drawn this session (the DB also keeps the loaded base set).
   const historyRef = useRef(new StrokeHistory());
+  const baseStrokesRef = useRef<Stroke[]>([]);
+  // PNG snapshots for pixel-faithful undo/redo: snaps[0] is the loaded baseline,
+  // snaps[k] is the canvas after the k-th stroke drawn this session.
+  const snapsRef = useRef<string[]>([]);
+  const snapIdxRef = useRef(0);
+  const restoreTokenRef = useRef(0);
   const nodeIdRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
   const timerRef = useRef<number | null>(null);
@@ -65,15 +76,45 @@ export function CanvasView() {
 
   const setActions = useTools((s) => s.setActions);
 
+  const captureSnapshot = useCallback(
+    () => canvasRef.current?.toDataURL("image/png") ?? "",
+    [],
+  );
+
+  // Async because decoding a data URL goes through an Image; a monotonic token
+  // discards stale restores if the node is switched mid-decode.
+  const restoreSnapshot = useCallback((dataURL: string) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !dataURL) return Promise.resolve();
+    const token = ++restoreTokenRef.current;
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (token === restoreTokenRef.current) {
+          ctx.save();
+          ctx.globalCompositeOperation = "source-over";
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          ctx.restore();
+        }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = dataURL;
+    });
+  }, []);
+
   const saveNow = useCallback(() => {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     if (!dirtyRef.current || !nodeIdRef.current) return;
-    api.saveCanvas(nodeIdRef.current, historyRef.current.list, BOUNDS);
+    const strokes = [...baseStrokesRef.current, ...historyRef.current.list];
+    api.saveCanvas(nodeIdRef.current, strokes, BOUNDS, captureSnapshot());
     dirtyRef.current = false;
-  }, []);
+  }, [captureSnapshot]);
 
   const scheduleSave = useCallback(() => {
     dirtyRef.current = true;
@@ -83,38 +124,71 @@ export function CanvasView() {
 
   const refreshUndoState = useCallback(() => {
     setActions({
-      canUndo: historyRef.current.canUndo,
-      canRedo: historyRef.current.canRedo,
+      canUndo: snapIdxRef.current > 0,
+      canRedo: snapIdxRef.current < snapsRef.current.length - 1,
     });
   }, [setActions]);
 
-  const redrawAll = useCallback(() => {
-    const at = atRef.current;
-    if (!at) return;
-    at.clear();
-    replay(at, historyRef.current.list);
-  }, []);
-
-  const doUndo = useCallback(() => {
-    if (!historyRef.current.undo()) return;
-    redrawAll();
+  const doUndo = useCallback(async () => {
+    if (snapIdxRef.current <= 0) return;
+    snapIdxRef.current -= 1;
+    historyRef.current.undo();
+    await restoreSnapshot(snapsRef.current[snapIdxRef.current]);
     scheduleSave();
     refreshUndoState();
-  }, [redrawAll, scheduleSave, refreshUndoState]);
+  }, [restoreSnapshot, scheduleSave, refreshUndoState]);
 
-  const doRedo = useCallback(() => {
-    if (!historyRef.current.redo()) return;
-    redrawAll();
+  const doRedo = useCallback(async () => {
+    if (snapIdxRef.current >= snapsRef.current.length - 1) return;
+    snapIdxRef.current += 1;
+    historyRef.current.redo();
+    await restoreSnapshot(snapsRef.current[snapIdxRef.current]);
     scheduleSave();
     refreshUndoState();
-  }, [redrawAll, scheduleSave, refreshUndoState]);
+  }, [restoreSnapshot, scheduleSave, refreshUndoState]);
 
   const doClear = useCallback(() => {
-    if (!nodeIdRef.current || !historyRef.current.clear()) return;
-    redrawAll();
+    if (!nodeIdRef.current) return;
+    if (baseStrokesRef.current.length === 0 && historyRef.current.list.length === 0) return;
+    baseStrokesRef.current = [];
+    historyRef.current.reset([]);
+    atRef.current?.clear();
+    snapsRef.current = [captureSnapshot()];
+    snapIdxRef.current = 0;
     scheduleSave();
     refreshUndoState();
-  }, [redrawAll, scheduleSave, refreshUndoState]);
+  }, [captureSnapshot, scheduleSave, refreshUndoState]);
+
+  // Load a node's canvas: draw its raster (faithful) or replay its vectors
+  // (fallback), then establish the undo baseline.
+  const loadIntoCanvas = useCallback(async () => {
+    const at = atRef.current;
+    if (!at) return;
+    const cur = loadedRef.current;
+    nodeIdRef.current = cur?.node.id ?? null;
+    baseStrokesRef.current = cur ? [...cur.canvas.strokes] : [];
+    historyRef.current.reset([]);
+    at.clear();
+
+    let needsRasterBackfill = false;
+    if (cur?.canvas.raster) {
+      await restoreSnapshot(cur.canvas.raster);
+    } else if (cur && cur.canvas.strokes.length > 0) {
+      replay(at, cur.canvas.strokes);
+      needsRasterBackfill = true;
+    }
+
+    snapsRef.current = [captureSnapshot()];
+    snapIdxRef.current = 0;
+    refreshUndoState();
+
+    // Persist a raster for legacy (vector-only) canvases so future loads and
+    // undo/redo are pixel-stable.
+    if (needsRasterBackfill) {
+      dirtyRef.current = true;
+      saveNow();
+    }
+  }, [restoreSnapshot, captureSnapshot, refreshUndoState, saveNow]);
 
   // Create the atrament instance once.
   useEffect(() => {
@@ -131,6 +205,9 @@ export function CanvasView() {
 
     const onRecorded = (e: { stroke: Stroke }) => {
       historyRef.current.push(e.stroke);
+      snapsRef.current = snapsRef.current.slice(0, snapIdxRef.current + 1);
+      snapsRef.current.push(captureSnapshot());
+      snapIdxRef.current = snapsRef.current.length - 1;
       scheduleSave();
       refreshUndoState();
     };
@@ -141,27 +218,22 @@ export function CanvasView() {
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) {
         e.preventDefault();
-        doUndo();
+        void doUndo();
       } else if ((k === "z" && e.shiftKey) || k === "y") {
         e.preventDefault();
-        doRedo();
+        void doRedo();
       }
     };
     window.addEventListener("keydown", onKey);
 
     setActions({
-      undo: doUndo,
-      redo: doRedo,
+      undo: () => void doUndo(),
+      redo: () => void doRedo(),
       clearCanvas: doClear,
       addTextbox: useStore.getState().addTextbox,
     });
 
-    // Hydrate whatever node is already selected.
-    const cur = loadedRef.current;
-    nodeIdRef.current = cur?.node.id ?? null;
-    historyRef.current.reset(cur ? cur.canvas.strokes : []);
-    redrawAll();
-    refreshUndoState();
+    void loadIntoCanvas();
 
     return () => {
       saveNow();
@@ -190,17 +262,12 @@ export function CanvasView() {
   useEffect(() => {
     if (!atRef.current) return;
     saveNow();
-    const cur = loadedRef.current;
-    nodeIdRef.current = loadedId;
-    historyRef.current.reset(cur ? cur.canvas.strokes : []);
-    redrawAll();
-    refreshUndoState();
+    void loadIntoCanvas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedId]);
 
-  // The canvas is always mounted so the atrament instance can attach to it on
-  // first render; the "no selection" state is shown as an overlay rather than
-  // by unmounting the canvas (which would leave atrament with nothing to bind).
+  // The canvas is always mounted so atrament can attach on first render; the
+  // "no selection" state is an overlay rather than an unmount.
   return (
     <div className="canvas-scroll">
       <div className="canvas-stage" style={{ width: CANVAS_W, height: CANVAS_H }}>

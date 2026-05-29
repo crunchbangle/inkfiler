@@ -19,8 +19,12 @@ export const api = {
 
   loadNode: (id: string) => invoke<LoadedNode | null>("load_node", { id }),
 
-  saveCanvas: (node_id: string, strokes: Stroke[], bounds: { w: number; h: number } | null) =>
-    invoke<void>("save_canvas", { nodeId: node_id, strokes, bounds }),
+  saveCanvas: (
+    node_id: string,
+    strokes: Stroke[],
+    bounds: { w: number; h: number } | null,
+    raster: string | null,
+  ) => invoke<void>("save_canvas", { nodeId: node_id, strokes, bounds, raster }),
 
   saveCaption: (id: string, caption: string) =>
     invoke<void>("save_caption", { id, caption }),

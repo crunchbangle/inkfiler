@@ -20,6 +20,9 @@ pub struct Canvas {
     pub node_id: String,
     pub bounds: Option<serde_json::Value>,
     pub strokes: serde_json::Value,
+    /// Rendered PNG snapshot (data URL) for pixel-faithful display, since
+    /// atrament's stateful renderer can't be reproduced exactly from vectors.
+    pub raster: Option<String>,
     pub updated_at: i64,
 }
 

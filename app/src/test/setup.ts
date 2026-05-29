@@ -12,7 +12,6 @@ if (!("randomUUID" in crypto)) {
   crypto.randomUUID = () => "test-" + Math.random().toString(16).slice(2);
 }
 if (!("PointerEvent" in globalThis)) {
-  // @ts-expect-error test shim
   globalThis.PointerEvent = class extends Event {} as never;
 }
 

@@ -15,7 +15,7 @@ function node(id: string, parent_id: string | null = null): Node {
 function loaded(n: Node): LoadedNode {
   return {
     node: n,
-    canvas: { node_id: n.id, bounds: null, strokes: [], updated_at: 0 },
+    canvas: { node_id: n.id, bounds: null, strokes: [], raster: null, updated_at: 0 },
     textboxes: [],
     tags: [],
   };

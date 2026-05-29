@@ -59,8 +59,9 @@ fn save_canvas(
     node_id: String,
     strokes: serde_json::Value,
     bounds: Option<serde_json::Value>,
+    raster: Option<String>,
 ) -> Result<(), String> {
-    e(db.save_canvas(&node_id, &strokes, &bounds))
+    e(db.save_canvas(&node_id, &strokes, &bounds, &raster))
 }
 
 #[tauri::command]

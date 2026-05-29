@@ -154,7 +154,7 @@ impl Db {
         let Some(node) = node else { return Ok(None) };
 
         let canvas = conn.query_row(
-            "SELECT node_id, bounds, strokes, updated_at FROM canvas WHERE node_id = ?1",
+            "SELECT node_id, bounds, strokes, raster, updated_at FROM canvas WHERE node_id = ?1",
             params![id],
             row_to_canvas,
         )?;
@@ -189,13 +189,14 @@ impl Db {
         node_id: &str,
         strokes: &serde_json::Value,
         bounds: &Option<serde_json::Value>,
+        raster: &Option<String>,
     ) -> rusqlite::Result<()> {
         let conn = self.conn.lock().unwrap();
         let strokes_txt = strokes.to_string();
         let bounds_txt = bounds.as_ref().map(|b| b.to_string());
         conn.execute(
-            "UPDATE canvas SET strokes = ?2, bounds = ?3, updated_at = ?4 WHERE node_id = ?1",
-            params![node_id, strokes_txt, bounds_txt, now_ms()],
+            "UPDATE canvas SET strokes = ?2, bounds = ?3, raster = ?4, updated_at = ?5 WHERE node_id = ?1",
+            params![node_id, strokes_txt, bounds_txt, raster, now_ms()],
         )?;
         Ok(())
     }
@@ -302,7 +303,8 @@ fn row_to_canvas(r: &rusqlite::Row) -> rusqlite::Result<Canvas> {
         node_id: r.get(0)?,
         bounds: bounds_txt.and_then(|t| serde_json::from_str(&t).ok()),
         strokes: serde_json::from_str(&strokes_txt).unwrap_or(serde_json::json!([])),
-        updated_at: r.get(3)?,
+        raster: r.get(3)?,
+        updated_at: r.get(4)?,
     })
 }
 
@@ -395,6 +397,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             node_id    TEXT PRIMARY KEY REFERENCES node(id) ON DELETE CASCADE,
             bounds     TEXT,
             strokes    TEXT NOT NULL DEFAULT '[]',
+            raster     TEXT,
             updated_at INTEGER NOT NULL
          );
 
@@ -420,7 +423,11 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
          CREATE VIRTUAL TABLE IF NOT EXISTS node_fts USING fts5(
             node_id UNINDEXED, title, caption, textbox_text, tags
          );",
-    )
+    )?;
+    // Add the raster column to databases created before it existed.
+    // Ignored if it's already present (fresh DBs get it from CREATE above).
+    let _ = conn.execute("ALTER TABLE canvas ADD COLUMN raster TEXT", []);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -483,11 +490,20 @@ mod tests {
              "color": "#000", "adaptiveStroke": true}
         ]);
         let bounds = Some(serde_json::json!({"w": 1600, "h": 1200}));
-        db.save_canvas(&n.id, &strokes, &bounds).unwrap();
+        let raster = Some("data:image/png;base64,AAAA".to_string());
+        db.save_canvas(&n.id, &strokes, &bounds, &raster).unwrap();
 
         let loaded = db.load_node(&n.id).unwrap().unwrap();
         assert_eq!(loaded.canvas.strokes, strokes);
         assert_eq!(loaded.canvas.bounds, bounds);
+        assert_eq!(loaded.canvas.raster, raster);
+    }
+
+    #[test]
+    fn new_canvas_has_null_raster() {
+        let db = Db::open_in_memory().unwrap();
+        let n = db.create_node(None, None).unwrap();
+        assert_eq!(db.load_node(&n.id).unwrap().unwrap().canvas.raster, None);
     }
 
     #[test]
