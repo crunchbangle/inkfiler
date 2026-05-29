@@ -1,0 +1,15 @@
+# Claude Code — keep shared config, ignore machine-local settings
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Node (belt-and-braces; app/ has its own ignore too)
+node_modules/
+
+# Rust build output (src-tauri has its own ignore too)
+target/
+
+# E2E: downloaded WebDriver binary (version-specific, re-downloadable)
+app/e2e/drivers/
