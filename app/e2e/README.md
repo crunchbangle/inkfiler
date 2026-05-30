@@ -40,4 +40,17 @@ app binary at `src-tauri/target/debug/app.exe`, and runs the specs in
 - `drivers/` is git-ignored except for this README; don't commit the binary.
 - Edge WebDriver pointer actions of `pointerType: "pen"` exercise the pressure
   path; mouse fallback also works.
-- CI runs these on a `windows-latest` runner (see the release workflow when added).
+
+## CI is the primary home for E2E
+
+These tests run in CI on **Linux** (`.github/workflows/ci.yml`), which avoids the
+Windows pain entirely: tauri-driver uses `WebKitWebDriver` (shipped matched to
+`webkit2gtk`), so there's no evergreen version-drift to chase, and `xvfb`
+provides the headless display.
+
+**Local Windows status:** the full stack is verified working — tauri-driver +
+msedgedriver + WebView2 attach and create a session against the built app (with
+isolated data). The remaining local hurdle is a WebdriverIO v9 runner quirk
+(getting from "session created" to "run the specs"); the canonical Linux config
+in CI sidesteps it. The driver version **must** match the (auto-updating)
+WebView2 runtime — re-download `msedgedriver` if a run suddenly stops connecting.

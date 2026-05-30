@@ -98,7 +98,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let dir = app.path().app_data_dir()?;
+            // Allow overriding the data directory. Used by E2E tests to stay off
+            // the user's real notebook; also enables a portable/custom location.
+            let dir = match std::env::var("INKFILER_DATA_DIR") {
+                Ok(d) if !d.trim().is_empty() => std::path::PathBuf::from(d),
+                _ => app.path().app_data_dir()?,
+            };
             std::fs::create_dir_all(&dir)?;
             let db = Db::open(&dir.join("inkfiler.db"))
                 .map_err(|err| format!("failed to open database: {err}"))?;

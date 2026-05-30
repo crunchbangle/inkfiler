@@ -1,0 +1,79 @@
+name: CI
+
+# Runs on every PR (and on pushes to main so the check history exists).
+# Make the "Unit & type tests", "Rust tests" and "E2E (Linux)" checks
+# *required* in Settings → Branches → branch protection to block merges on red.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  unit:
+    name: Unit & type tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Frontend tests (vitest)
+        run: npm test
+
+  rust:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Install Tauri Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: cargo test
+        working-directory: app/src-tauri
+        run: cargo test
+
+  e2e:
+    name: E2E (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Install Tauri deps + WebKit WebDriver + xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            webkit2gtk-driver xvfb
+      - run: npm ci
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Build app (debug bundle with embedded frontend)
+        run: npm run tauri build -- --debug
+      - name: Run E2E under a virtual display
+        # Isolated data dir keeps the run self-contained (also harmless on CI).
+        env:
+          INKFILER_DATA_DIR: ${{ runner.temp }}/inkfiler-e2e-data
+        run: xvfb-run -a npm run test:e2e

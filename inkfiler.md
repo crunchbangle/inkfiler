@@ -58,3 +58,21 @@ Techstack:
 - ts react
 - atrament.js
 - idk what else is needed?
+
+## extra wants
+
+At time of writing, the app is running with tree, captions, sticky notes, drawing...
+
+- zoom + pan with overview panel (above annotations?)
+- allow collapse each sidebar to have more canvas drawing space
+- sticky notes is great, but I was expecting graphical text, so maybe theming/styling those boxes and font/size selection?
+- io.firefinch is probably not the right namespace as this is a side-project... should be idk github.crunchbangle?
+- layers - crud, strokes on current layer, show/hide
+- layers2 - transform layers - maybe more than one in the same step
+
+
+## ci
+
+- run unit and e2e tests on pr creation... must test/pass before merge allowed
+- github actions to build windows and linux binary artifacts for download after merging a pr, link downloads from readme
+

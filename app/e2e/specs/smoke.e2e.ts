@@ -6,6 +6,12 @@
  * stroke on the canvas, and confirm Undo becomes enabled (a stroke recorded).
  */
 describe("InkFiler smoke", () => {
+  it("starts with an empty tree (proves the isolated test data dir is used)", async () => {
+    await expect($(".tree-empty")).toBeExisting();
+    await expect($(".tree-empty")).toHaveText(expect.stringContaining("No nodes yet"));
+    await expect($$(".tree-row")).toBeElementsArrayOfSize(0);
+  });
+
   it("creates a node and selects it", async () => {
     await $("button.new-root").click();
     const row = await $(".tree-row.selected");
