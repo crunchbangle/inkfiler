@@ -26,12 +26,16 @@ describe("InkFiler smoke", () => {
     // element's centre (origin) so the pointer events land on the canvas itself
     // rather than the surrounding chrome (the sidebar/toolbar).
     const canvas = await $("canvas.ink-canvas");
+    // Use a mouse pointer: synthetic "pen" events aren't reliably delivered by
+    // WebKitWebDriver on Linux, whereas "mouse" is universally supported. The
+    // several moves between down/up ensure atrament records stroke segments.
     await browser
-      .action("pointer", { parameters: { pointerType: "pen" } })
+      .action("pointer", { parameters: { pointerType: "mouse" } })
       .move({ origin: canvas, x: -120, y: -40 })
       .down()
-      .move({ origin: canvas, x: 0, y: 30, duration: 60 })
-      .move({ origin: canvas, x: 120, y: -20, duration: 60 })
+      .move({ origin: canvas, x: -40, y: 20, duration: 50 })
+      .move({ origin: canvas, x: 40, y: 0, duration: 50 })
+      .move({ origin: canvas, x: 120, y: -20, duration: 50 })
       .up()
       .perform();
 
