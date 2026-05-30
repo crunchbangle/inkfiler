@@ -1,8 +1,13 @@
 <p align="center">
-  <img src="branding/logo.png" width="160" alt="InkFiler logo" />
+  <img src="branding/logo.png" width="140" alt="InkFiler logo" />
 </p>
 
-<h1 align="center">InkFiler 🖋</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="branding/wordmark-dark.png" />
+    <img src="branding/wordmark-light.png" width="440" alt="InkFiler" />
+  </picture>
+</p>
 
 <p align="center">
   An <strong>ink-first, privacy-focused, self-hosted</strong> hierarchical notebook — a
