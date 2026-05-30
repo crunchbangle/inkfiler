@@ -1,4 +1,4 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
@@ -41,6 +41,11 @@ export const config: WebdriverIO.Config = {
       // @ts-expect-error tauri-specific capability
       "tauri:options": { application: appBinary },
       browserName: "wry",
+      // WebdriverIO v9 otherwise tries to upgrade to a WebDriver BiDi session,
+      // which hangs forever against the classic wry/WebKitWebDriver that
+      // tauri-driver proxies (session is created — the app launches — but the
+      // run never proceeds). Force classic WebDriver to skip the BiDi handshake.
+      "wdio:enforceWebDriverClassic": true,
     },
   ],
   reporters: ["spec"],
@@ -54,9 +59,11 @@ export const config: WebdriverIO.Config = {
   mochaOpts: { ui: "bdd", timeout: 60_000 },
 
   // Make sure the binary exists, then point the app at a clean temp data dir.
+  // NB: only check that it *exists* — never execute it here. It's a GUI app, so
+  // spawning it (e.g. with `--help`) launches a window that never exits and
+  // hangs onPrepare forever (before wdio ever creates a session).
   onPrepare: () => {
-    const built = spawnSync(appBinary, ["--help"], { stdio: "ignore" });
-    if (built.error && (built.error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (!fs.existsSync(appBinary)) {
       throw new Error(
         `App binary not found at ${appBinary}.\n` +
           `Build it first:  npm run tauri build -- --debug`,

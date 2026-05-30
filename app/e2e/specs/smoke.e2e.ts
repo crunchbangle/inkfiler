@@ -22,24 +22,18 @@ describe("InkFiler smoke", () => {
     const undo = await $("button[title='Undo (Ctrl+Z)']");
     await expect(undo).toBeDisabled();
 
-    // Drag across the canvas to draw a stroke.
+    // Draw a stroke across the canvas. Coordinates are relative to the canvas
+    // element's centre (origin) so the pointer events land on the canvas itself
+    // rather than the surrounding chrome (the sidebar/toolbar).
     const canvas = await $("canvas.ink-canvas");
-    await canvas.moveTo({ xOffset: 80, yOffset: 80 });
-    await browser.performActions([
-      {
-        type: "pointer",
-        id: "pen",
-        parameters: { pointerType: "pen" },
-        actions: [
-          { type: "pointerMove", duration: 0, x: 200, y: 200 },
-          { type: "pointerDown", button: 0 },
-          { type: "pointerMove", duration: 50, x: 320, y: 280 },
-          { type: "pointerMove", duration: 50, x: 420, y: 200 },
-          { type: "pointerUp", button: 0 },
-        ],
-      },
-    ]);
-    await browser.releaseActions();
+    await browser
+      .action("pointer", { parameters: { pointerType: "pen" } })
+      .move({ origin: canvas, x: -120, y: -40 })
+      .down()
+      .move({ origin: canvas, x: 0, y: 30, duration: 60 })
+      .move({ origin: canvas, x: 120, y: -20, duration: 60 })
+      .up()
+      .perform();
 
     await expect(undo).toBeEnabled();
   });

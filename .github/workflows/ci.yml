@@ -1,9 +1,8 @@
 name: CI
 
 # Runs on every PR (and on pushes to main so the check history exists).
-# Mark "Unit & type tests" and "Rust tests" as *required* in Settings → Branches.
-# E2E is non-blocking for now (continue-on-error) until the WebdriverIO-v9 runner
-# issue is resolved — do NOT make it a required check yet.
+# Mark "Unit & type tests", "Rust tests" and "E2E (Linux)" as *required* checks
+# in Settings → Branches → branch protection to block merges on red.
 on:
   pull_request:
   push:
@@ -58,12 +57,9 @@ jobs:
   e2e:
     name: E2E (Linux)
     runs-on: ubuntu-latest
-    # Non-blocking until the WebdriverIO-v9 runner issue is fixed (it currently
-    # hangs at session start). timeout-minutes caps wasted minutes; the job ran
-    # to GitHub's 6h limit before this was added. continue-on-error keeps a
-    # hung/failed E2E from failing the overall workflow.
+    # timeout-minutes is a safety cap (the job once ran to GitHub's 6h limit due
+    # to an onPrepare bug that launched the GUI binary and blocked forever).
     timeout-minutes: 20
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,8 +80,8 @@ jobs:
       - run: npm ci
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
-      - name: Build app (debug bundle with embedded frontend)
-        run: npm run tauri build -- --debug
+      - name: Build app binary (embedded frontend; skip slow installer bundling)
+        run: npm run tauri build -- --debug --no-bundle
       - name: Run E2E under a virtual display
         # Isolated data dir keeps the run self-contained (also harmless on CI).
         env:

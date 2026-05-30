@@ -27,9 +27,14 @@ The binary must have the frontend **baked in**, so build a debug bundle first
 (a plain `cargo build` produces a binary that expects the dev server):
 
 ```
-npm run tauri build -- --debug
+npm run tauri build -- --debug --no-bundle   # builds the embedded-frontend binary, skips slow installer bundling
 npm run test:e2e
 ```
+
+> A plain `cargo build`/`cargo test` overwrites `target/debug/app(.exe)` with a
+> *dev-URL* binary (it expects the Vite dev server). Always rebuild with the line
+> above before `test:e2e`, or the app will load `localhost:1420` and the specs
+> will hang waiting for UI that never appears.
 
 `wdio.conf.ts` launches `tauri-driver` (which spawns msedgedriver), starts the
 app binary at `src-tauri/target/debug/app.exe`, and runs the specs in
