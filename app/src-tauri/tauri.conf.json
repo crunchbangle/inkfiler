@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "app",
+  "productName": "InkFiler",
   "version": "0.1.0",
-  "identifier": "io.firefinch.inkfiler",
+  "identifier": "io.github.crunchbangle.inkfiler",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "app",
-        "width": 800,
-        "height": 600
+        "title": "InkFiler",
+        "width": 1280,
+        "height": 800
       }
     ],
     "security": {

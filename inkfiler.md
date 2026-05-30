@@ -63,6 +63,7 @@ Techstack:
 
 At time of writing, the app is running with tree, captions, sticky notes, drawing...
 
+- user-configurable data location
 - zoom + pan with overview panel (above annotations?)
 - allow collapse each sidebar to have more canvas drawing space
 - sticky notes is great, but I was expecting graphical text, so maybe theming/styling those boxes and font/size selection?

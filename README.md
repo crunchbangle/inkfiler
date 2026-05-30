@@ -1,11 +1,21 @@
-# InkFiler 🖋
+<p align="center">
+  <img src="branding/logo.png" width="160" alt="InkFiler logo" />
+</p>
 
-An **ink-first, privacy-focused, self-hosted** hierarchical notebook — a OneNote/Obsidian-style
-sidebar tree where every node owns a pressure-sensitive drawing canvas, with text boxes,
-captions, tags, and full-text search. Built with Tauri + React + atrament.js, storing everything
-locally in a single SQLite file.
+<h1 align="center">InkFiler 🖋</h1>
 
-[![CI](https://github.com/crunchbangle/inkfiler/actions/workflows/ci.yml/badge.svg)](https://github.com/crunchbangle/inkfiler/actions/workflows/ci.yml)
+<p align="center">
+  An <strong>ink-first, privacy-focused, self-hosted</strong> hierarchical notebook — a
+  OneNote/Obsidian-style sidebar tree where every node owns a pressure-sensitive drawing
+  canvas, with text boxes, captions, tags, and full-text search. Built with Tauri + React +
+  atrament.js, storing everything locally in a single SQLite file.
+</p>
+
+<p align="center">
+  <a href="https://github.com/crunchbangle/inkfiler/actions/workflows/ci.yml">
+    <img src="https://github.com/crunchbangle/inkfiler/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+</p>
 
 ## Download
 
@@ -34,7 +44,7 @@ See [inkfiler.md](inkfiler.md) for the vision and [inkfiler-plan.md](inkfiler-pl
 A single SQLite file in your OS app-data directory, e.g. on Windows:
 
 ```
-%APPDATA%\io.firefinch.inkfiler\inkfiler.db
+%APPDATA%\io.github.crunchbangle.inkfiler\inkfiler.db
 ```
 
 Back it up by copying that file. Set `INKFILER_DATA_DIR` to override the location (used by tests).
